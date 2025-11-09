@@ -1,0 +1,10 @@
+version: "3"
+services:
+  api:
+    build: ./backend
+    ports: ["8000:8000"]
+  web:
+    build: ./frontend
+    ports: ["5173:80"]
+    environment:
+      - VITE_WS_URL=ws://localhost:8000/ws
