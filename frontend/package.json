@@ -13,6 +13,7 @@
     "@heroicons/react": "^2.2.0",
     "@radix-ui/react-dialog": "^1.1.15",
     "@tailwindcss/vite": "^4.1.17",
+    "@types/howler": "^2.2.12",
     "framer-motion": "^12.23.24",
     "howler": "^2.2.4",
     "react": "^19.1.1",
