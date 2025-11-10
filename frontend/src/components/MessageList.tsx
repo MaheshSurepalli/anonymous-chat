@@ -7,7 +7,7 @@ export default function MessageList() {
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => { ref.current?.scrollTo({ top: ref.current.scrollHeight, behavior: 'smooth' }) }, [messages])
   return (
-    <div ref={ref} className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+    <div ref={ref} className="flex-1 overflow-y-auto px-4 py-3 space-y-2 scroll-pb-28">
       <AnimatePresence initial={false}>
         {messages.map(m => (
           <motion.div key={m.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className={m.mine ? 'text-right' : 'text-left'}>
