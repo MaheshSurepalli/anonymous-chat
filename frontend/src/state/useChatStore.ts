@@ -3,7 +3,7 @@ import type { ClientToServer, ServerToClient } from '../types/events'
 
 export type Status = 'idle' | 'searching' | 'matched'
 
-type Msg = { id: string; text: string; mine: boolean; ts: number }
+type Msg = { id: string; text: string; mine: boolean; ts: number; reaction: string | null }
 
 type Partner = { id: string; avatar: string } | null
 
@@ -26,6 +26,7 @@ type Store = {
   next: () => void
   leave: () => void
   setTheme: (t: 'light' | 'dark') => void
+  setMessageReaction: (id: string, reaction: string | null) => void
 }
 
 const randomEmoji = () => {
@@ -78,7 +79,7 @@ export const useChatStore = create<Store>((set, get) => ({
         set(st => ({
           messages: [
             ...st.messages,
-            { id: crypto.randomUUID(), text: data.text, mine: false, ts: data.sentAt }
+            { id: crypto.randomUUID(), text: data.text, mine: false, ts: data.sentAt, reaction: null }
           ]
         }));
       } else if (data.type === 'typing') {
@@ -116,7 +117,7 @@ export const useChatStore = create<Store>((set, get) => ({
     const sentAt = Date.now()
     const evt: ClientToServer = { type: 'message', room, text, sentAt }
     socket.send(JSON.stringify(evt))
-    set({ messages: [...messages, { id: crypto.randomUUID(), text, mine: true, ts: sentAt }] })
+    set({ messages: [...messages, { id: crypto.randomUUID(), text, mine: true, ts: sentAt, reaction: null }] })
   },
 
   sendTyping: (isTyping: boolean) => {
@@ -146,5 +147,11 @@ export const useChatStore = create<Store>((set, get) => ({
     document.documentElement.classList.toggle('dark', t === 'dark')
     document.documentElement.dataset.theme = t
     localStorage.setItem('theme-preference', t)
+  },
+
+  setMessageReaction: (id, reaction) => {
+    set(st => ({
+      messages: st.messages.map(m => (m.id === id ? { ...m, reaction } : m))
+    }))
   }
 }))
