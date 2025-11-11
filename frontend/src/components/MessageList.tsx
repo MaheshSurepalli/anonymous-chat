@@ -6,7 +6,7 @@ import useKeyboardOffset from '../hooks/useKeyboardOffset'
 export default function MessageList() {
   const { messages, setMessageReaction } = useChatStore()
   const ref = useRef<HTMLDivElement>(null)
-  const longPressTimer = useRef<number>()
+  const longPressTimer = useRef<number | null>(null)
   const [pickerFor, setPickerFor] = useState<string | null>(null)
   const keyboardOffset = useKeyboardOffset()
   useEffect(() => { ref.current?.scrollTo({ top: ref.current.scrollHeight, behavior: 'smooth' }) }, [messages])
@@ -14,9 +14,9 @@ export default function MessageList() {
   const scrollPaddingBottom = `calc(env(safe-area-inset-bottom) + 9rem + ${keyboardOffset}px)`
   const reactionOptions = ['👍', '😂', '❤️', '😮']
   const clearLongPress = () => {
-    if (longPressTimer.current) {
+    if (longPressTimer.current !== null) {
       clearTimeout(longPressTimer.current)
-      longPressTimer.current = undefined
+      longPressTimer.current = null
     }
   }
   return (
