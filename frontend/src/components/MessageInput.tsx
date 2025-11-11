@@ -14,16 +14,28 @@ export default function MessageInput() {
   useEffect(() => { ref.current?.focus() }, [status])
   if (status !== 'matched') return null
 
-  const paddingBottom = `calc(env(safe-area-inset-bottom) + 0.75rem + ${keyboardOffset}px)`
+  const paddingBottom = 'calc(env(safe-area-inset-bottom) + 0.75rem)'
+  const transform = keyboardOffset ? `translateY(-${keyboardOffset}px)` : undefined
 
   return (
     <div
       className="sticky border-t border-zinc-200 dark:border-zinc-800 p-3 bg-white/95 dark:bg-zinc-900/95 backdrop-blur"
-      style={{ bottom: keyboardOffset ? `${keyboardOffset}px` : undefined, paddingBottom }}
+      style={{ bottom: 0, paddingBottom, transform }}
     >
       <div className="border-t border-zinc-200 dark:border-zinc-800 p-3">
         {typing && <div className="px-1 pb-1 text-xs text-zinc-500">Stranger is typing…</div>}
-        <form className="flex items-center gap-2" onSubmit={(e) => { e.preventDefault(); if (text.trim()) { sendMessage(text.trim()); setText('') } }}>
+        <form
+          className="flex items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (text.trim()) {
+              sendMessage(text.trim())
+              sendTyping(false)
+              setText('')
+              requestAnimationFrame(() => ref.current?.focus())
+            }
+          }}
+        >
           <input
             ref={ref}
             value={text}
@@ -33,7 +45,13 @@ export default function MessageInput() {
             aria-label="Message"
             className="flex-1 rounded-2xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 outline-none focus:ring-2"
           />
-          <button type="submit" className="px-3 py-2 rounded-2xl bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900">Send</button>
+          <button
+            type="submit"
+            onPointerDown={(event) => event.preventDefault()}
+            className="px-3 py-2 rounded-2xl bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
+          >
+            Send
+          </button>
         </form>
       </div>
     </div>
