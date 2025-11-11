@@ -8,13 +8,16 @@ export default function MessageList() {
   const ref = useRef<HTMLDivElement>(null)
   const keyboardOffset = useKeyboardOffset()
   useEffect(() => { ref.current?.scrollTo({ top: ref.current.scrollHeight, behavior: 'smooth' }) }, [messages])
-  const bottomPadding = `calc(env(safe-area-inset-bottom) + 0.75rem + ${keyboardOffset}px)`
-  const scrollPaddingBottom = `calc(env(safe-area-inset-bottom) + 7rem + ${keyboardOffset}px)`
+  const bottomPadding = `calc(env(safe-area-inset-bottom) + 1.25rem + ${keyboardOffset}px)`
+  const scrollPaddingBottom = `calc(env(safe-area-inset-bottom) + 9rem + ${keyboardOffset}px)`
   return (
     <div
       ref={ref}
       className="flex-1 overflow-y-auto px-4 py-3 space-y-2"
       style={{ paddingBottom: bottomPadding, scrollPaddingBottom }}
+      role="log"
+      aria-live="polite"
+      aria-relevant="additions"
     >
       <AnimatePresence initial={false}>
         {messages.map(m => (
