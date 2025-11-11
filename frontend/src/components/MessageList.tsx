@@ -1,15 +1,40 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import MessageBubble from './MessageBubble'
 import { useChatStore } from '../state/useChatStore'
 import useKeyboardOffset from '../hooks/useKeyboardOffset'
 
 export default function MessageList() {
-  const { messages } = useChatStore()
+  const { messages, setMessageReaction } = useChatStore()
   const ref = useRef<HTMLDivElement>(null)
   const keyboardOffset = useKeyboardOffset()
   useEffect(() => { ref.current?.scrollTo({ top: ref.current.scrollHeight, behavior: 'smooth' }) }, [messages])
   const bottomPadding = `calc(env(safe-area-inset-bottom) + 0.75rem + ${keyboardOffset}px)`
   const scrollPaddingBottom = `calc(env(safe-area-inset-bottom) + 7rem + ${keyboardOffset}px)`
+  const [activeId, setActiveId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const closePicker = () => setActiveId(null)
+    window.addEventListener('click', closePicker)
+    window.addEventListener('touchstart', closePicker)
+    return () => {
+      window.removeEventListener('click', closePicker)
+      window.removeEventListener('touchstart', closePicker)
+    }
+  }, [])
+
+  const openPicker = useCallback((id: string) => {
+    setActiveId(id)
+  }, [])
+
+  const handleSelectReaction = useCallback(
+    (id: string, reaction: Parameters<typeof setMessageReaction>[1]) => {
+      setMessageReaction(id, reaction)
+      setActiveId(null)
+    },
+    [setMessageReaction]
+  )
+
   return (
     <div
       ref={ref}
@@ -19,10 +44,13 @@ export default function MessageList() {
       <AnimatePresence initial={false}>
         {messages.map(m => (
           <motion.div key={m.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} className={m.mine ? 'text-right' : 'text-left'}>
-            <span className={`inline-block max-w-[80%] rounded-2xl px-3 py-2 text-sm ${m.mine ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : 'bg-zinc-100 dark:bg-zinc-800'}`}>
-              {m.text}
-            </span>
-            <div className="mt-0.5 text-[11px] text-zinc-500">{new Date(m.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+            <MessageBubble
+              message={m}
+              isActive={activeId === m.id}
+              onOpen={() => openPicker(m.id)}
+              onSelect={(reaction) => handleSelectReaction(m.id, reaction)}
+            />
+            <div className="mt-3 text-[11px] text-zinc-500">{new Date(m.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
           </motion.div>
         ))}
       </AnimatePresence>
