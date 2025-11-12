@@ -7,21 +7,26 @@ import {
   ArrowPathIcon,
   StopCircleIcon,
 } from '@heroicons/react/24/solid'
+import ConfirmDialog from './ConfirmDialog'
 
 export default function HeaderBar() {
   const { status, partner, startedAt, next, leave } = useChatStore()
-  const [confirmNextOpen, setConfirmNextOpen] = useState(false)
-  const [confirmEndOpen, setConfirmEndOpen] = useState(false)
-  const [tick, setTick] = useState(0)
+  const [activeDialog, setActiveDialog] = useState<'next' | 'end' | null>(null)
+  const [now, setNow] = useState(() => Date.now())
   const [isDark, setIsDark] = useState<boolean>(() =>
     document.documentElement.classList.contains('dark')
   )
 
   // keep a lightweight timer for mm:ss
   useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 1000)
-    return () => clearInterval(id)
-  }, [])
+    if (status !== 'matched' || !startedAt) {
+      setNow(Date.now())
+      return
+    }
+
+    const id = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [status, startedAt])
 
   // reflect theme changes in icon
   useEffect(() => {
@@ -34,11 +39,14 @@ export default function HeaderBar() {
 
   const timer = useMemo(() => {
     if (!startedAt || Number.isNaN(startedAt)) return null
-    const secs = Math.max(0, Math.floor((Date.now() - startedAt) / 1000))
+    const secs = Math.max(0, Math.floor((now - startedAt) / 1000))
     const mm = String(Math.floor(secs / 60)).padStart(2, '0')
     const ss = String(secs % 60).padStart(2, '0')
     return `${mm}:${ss}`
-  }, [startedAt, tick])
+  }, [startedAt, now])
+
+  const iconButtonBase =
+    'p-2 rounded-xl focus-visible:outline-none focus-visible:ring-2 transition-colors'
 
   return (
     <>
@@ -56,10 +64,10 @@ export default function HeaderBar() {
           <div className="flex items-center gap-2">
             {/* Theme icon button */}
             <button
-              onClick={() => { toggleTheme(); setIsDark(!isDark) }}
+              onClick={() => toggleTheme()}
               aria-label="Toggle theme"
               title="Toggle theme"
-              className="p-2 rounded-xl border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-2 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              className={`${iconButtonBase} border border-zinc-300 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800`}
             >
               {isDark ? (
                 <SunIcon className="h-5 w-5" aria-hidden />
@@ -73,20 +81,20 @@ export default function HeaderBar() {
               <div className="flex items-center gap-2">
                 {/* Next Stranger (icon) */}
                 <button
-                  onClick={() => setConfirmNextOpen(true)}
+                  onClick={() => setActiveDialog('next')}
                   aria-label="Next stranger"
                   title="Next stranger"
-                  className="p-2 rounded-xl bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 focus:outline-none focus:ring-2 hover:opacity-90"
+                  className={`${iconButtonBase} bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200`}
                 >
                   <ArrowPathIcon className="h-5 w-5" aria-hidden />
                 </button>
 
                 {/* End Conversation (icon) */}
                 <button
-                  onClick={() => setConfirmEndOpen(true)}
+                  onClick={() => setActiveDialog('end')}
                   aria-label="End conversation"
                   title="End conversation"
-                  className="p-2 rounded-xl border border-zinc-300 dark:border-zinc-700 focus:outline-none focus:ring-2 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  className={`${iconButtonBase} border border-zinc-300 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800`}
                 >
                   <StopCircleIcon className="h-5 w-5" aria-hidden />
                 </button>
@@ -95,53 +103,25 @@ export default function HeaderBar() {
           </div>
         </div>
       </header>
-      
-      {confirmNextOpen && (
-        <div className="fixed inset-0 z-50 grid place-items-center p-4">
-          <button
-            aria-hidden
-            onClick={() => setConfirmNextOpen(false)}
-            className="absolute inset-0 bg-black/40"
-          />
-          <div
-            role="dialog"
-            aria-modal
-            aria-labelledby="next-title"
-            className="relative w-full max-w-sm rounded-2xl bg-white p-4 shadow-lg outline-none dark:bg-zinc-800"
-          >
-            <h2 id="next-title" className="text-lg font-semibold">Find next stranger?</h2>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">Your current chat will end.</p>
-            <div className="mt-4 flex justify-end gap-2">
-              <button onClick={() => setConfirmNextOpen(false)} className="px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700">Cancel</button>
-              <button onClick={() => { setConfirmNextOpen(false); next() }} className="px-3 py-2 rounded-xl bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900">Confirm</button>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Confirm: End Conversation (now OUTSIDE header) */}
-      {confirmEndOpen && (
-        <div className="fixed inset-0 z-50 grid place-items-center p-4">
-          <button
-            aria-hidden
-            onClick={() => setConfirmEndOpen(false)}
-            className="absolute inset-0 bg-black/40"
-          />
-          <div
-            role="dialog"
-            aria-modal
-            aria-labelledby="end-title"
-            className="relative w-full max-w-sm rounded-2xl bg-white p-4 shadow-lg outline-none dark:bg-zinc-800"
-          >
-            <h2 id="end-title" className="text-lg font-semibold">End conversation?</h2>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">You’ll return to Idle.</p>
-            <div className="mt-4 flex justify-end gap-2">
-              <button onClick={() => setConfirmEndOpen(false)} className="px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700">Cancel</button>
-              <button onClick={() => { setConfirmEndOpen(false); leave() }} className="px-3 py-2 rounded-xl bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900">End</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={activeDialog === 'next'}
+        onOpenChange={(open) => setActiveDialog(open ? 'next' : null)}
+        title="Find next stranger?"
+        description="Your current chat will end and you’ll return to the queue."
+        confirmLabel="Find Next"
+        onConfirm={() => next()}
+      />
+
+      <ConfirmDialog
+        open={activeDialog === 'end'}
+        onOpenChange={(open) => setActiveDialog(open ? 'end' : null)}
+        title="End conversation?"
+        description="You’ll return to the idle screen."
+        confirmLabel="End Chat"
+        tone="danger"
+        onConfirm={() => leave()}
+      />
     </>
   )
 }
