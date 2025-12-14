@@ -3,9 +3,14 @@ import Constants from 'expo-constants'
 
 // Resolve a WebSocket URL suitable for Android emulator and dev.
 export function getWsUrl(): string {
-  const envUrl = process.env.EXPO_PUBLIC_WS_URL as string | undefined
-  const extraUrl = (Constants.expoConfig?.extra as any)?.wsUrl as string | undefined
-  let url = envUrl || extraUrl || 'ws://localhost:8000/ws'
+  const extra = (Constants.expoConfig?.extra ?? (Constants.manifest as any)?.extra) as any
+  const url = extra?.wsUrl as string | undefined
+
+  if (!url) {
+    throw new Error(
+      'Missing wsUrl in app.json (expo.extra.wsUrl). Add it to mobile/app.json to avoid duplicated defaults.'
+    )
+  }
 
   try {
     const u = new URL(url)

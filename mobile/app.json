@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "my-app",
-    "slug": "my-app",
-    "version": "1.0.0",
+    "name": "Strange Chat",
+    "slug": "stranger-chat",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
@@ -12,6 +12,8 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.mahesh.strangerchat.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -42,7 +44,11 @@
       ]
     ],
     "extra": {
-      "wsUrl": "ws://10.0.2.2:8000/ws"
+      "wsUrl": "wss://achat-egazbnh3d3f9hkaz.centralindia-01.azurewebsites.net/ws",
+      "router": {},
+      "eas": {
+        "projectId": "5fe80401-f6f4-46bb-9da4-94989f572b47"
+      }
     },
     "experiments": {
       "typedRoutes": true,

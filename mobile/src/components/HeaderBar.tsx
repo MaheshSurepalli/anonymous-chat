@@ -7,7 +7,7 @@ import { useTheme } from '../state/ThemeContext'
 
 export default function HeaderBar() {
   const { status, partner, startedAt, next, leave } = useChat()
-  const [active, setActive] = useState<null | 'next' | 'end'>(null)
+  const [active, setActive] = useState<null | 'next' | 'end' | 'report'>(null)
   const [now, setNow] = useState(() => Date.now())
   const { mode, colors, toggle } = useTheme()
 
@@ -33,22 +33,35 @@ export default function HeaderBar() {
       <SafeAreaView edges={['top']} style={{ backgroundColor: colors.card }}>
         <View style={[styles.header, { borderBottomColor: colors.border, backgroundColor: colors.card }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text style={[styles.title, { color: colors.text }]}>Stranger Chat</Text>
             {status === 'matched' && partner && (
-              <Text style={[styles.sub, { color: colors.muted }]}>{partner.avatar} • {timer ?? '--:--'}</Text>
+              <Text style={[styles.sub, { color: colors.muted }]}>{partner.avatar} {timer ?? '--:--'}</Text>
             )}
           </View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Pressable onPress={toggle} style={[styles.iconBtn, { borderColor: colors.border }]}> 
+            <Pressable onPress={toggle} style={[styles.iconBtn, { borderColor: colors.border }]}>
               <Text style={[styles.iconBtnText, { color: colors.text }]}>{mode === 'dark' ? 'Light' : 'Dark'}</Text>
             </Pressable>
             {status === 'matched' && (
-              <Pressable onPress={() => setActive('next')} style={[styles.iconBtn, { borderColor: colors.border }] }>
-                <Text style={[styles.iconBtnText, { color: colors.text }]}>Next</Text>
-              </Pressable>
+              <>
+                <Pressable
+                  onPress={() => setActive('next')}
+                  style={[styles.iconBtn, { borderColor: colors.border }]}
+                >
+                  <Text style={[styles.iconBtnText, { color: colors.text }]}>Next</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setActive('report')}
+                  style={[styles.iconBtn, { borderColor: colors.dangerBg }]}
+                >
+                  <Text style={[styles.iconBtnText, { color: colors.dangerBg }]}>Report</Text>
+                </Pressable>
+              </>
             )}
             {status !== 'idle' && (
-              <Pressable onPress={() => setActive('end')} style={[styles.iconBtn, { backgroundColor: colors.dangerBg, borderColor: colors.dangerBg }] }>
+              <Pressable
+                onPress={() => setActive('end')}
+                style={[styles.iconBtn, { backgroundColor: colors.dangerBg, borderColor: colors.dangerBg }]}
+              >
                 <Text style={[styles.iconBtnText, { color: 'white' }]}>End</Text>
               </Pressable>
             )}
@@ -59,9 +72,24 @@ export default function HeaderBar() {
       <ConfirmDialog
         open={active === 'next'}
         title="Skip to next?"
-        description="You’ll leave the current chat and find a new match."
+        description="You'll leave the current chat and find a new match."
         confirmLabel="Next"
-        onConfirm={() => { setActive(null); next() }}
+        onConfirm={() => {
+          setActive(null)
+          next()
+        }}
+        onCancel={() => setActive(null)}
+      />
+      <ConfirmDialog
+        open={active === 'report'}
+        title="Report this chat?"
+        description="This will end the current chat and remove you from the room."
+        confirmLabel="Report"
+        tone="danger"
+        onConfirm={() => {
+          setActive(null)
+          leave()
+        }}
         onCancel={() => setActive(null)}
       />
       <ConfirmDialog
@@ -70,7 +98,10 @@ export default function HeaderBar() {
         description="This will end the current chat."
         confirmLabel="End"
         tone="danger"
-        onConfirm={() => { setActive(null); leave() }}
+        onConfirm={() => {
+          setActive(null)
+          leave()
+        }}
         onCancel={() => setActive(null)}
       />
     </>
@@ -91,3 +122,4 @@ const styles = StyleSheet.create({
   iconBtn: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 },
   iconBtnText: { fontWeight: '600' },
 })
+
