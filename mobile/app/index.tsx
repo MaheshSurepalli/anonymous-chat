@@ -22,9 +22,9 @@ export default function Index() {
       {status === 'matched' && (
         <KeyboardAvoidingView
           style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          behavior="padding"
           // offset the header/safe-area so the input lifts fully above the keyboard
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         >
           <View style={{ flex: 1, backgroundColor: colors.bg }}>
             <MessageList />

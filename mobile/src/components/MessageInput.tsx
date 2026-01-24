@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react'
-import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import React, { useMemo, useState, useRef, useEffect } from 'react'
+import { Platform, Pressable, StyleSheet, Text, TextInput, View, AppState, Keyboard } from 'react-native'
 import { useChat } from '../state/ChatContext'
 import { debounce } from '../utils/debounce'
 import { useTheme } from '../state/ThemeContext'
@@ -8,10 +8,41 @@ export default function MessageInput() {
   const { sendMessage, sendTyping } = useChat()
   const [text, setText] = useState('')
   const { colors } = useTheme()
+  const inputRef = useRef<TextInput>(null)
+  const appState = useRef(AppState.currentState)
 
   const debouncedTyping = useMemo(() => debounce((isTyping: boolean) => sendTyping(isTyping), 180), [sendTyping])
 
   const isSendDisabled = text.trim().length === 0
+
+  // Fix for Android Keyboard state losing sync on app resume
+  useEffect(() => {
+    if (Platform.OS !== 'android') return
+
+    const subscription = AppState.addEventListener('change', nextAppState => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        // App has come to the foreground
+        // If the input was focused, or if the keyboard thinks it's up, we might need to nudge it.
+        // We force a blur/focus cycle to "wake up" the window soft input mode.
+        if (inputRef.current?.isFocused()) {
+          // Small delay to ensure the window is ready to accept layout changes
+          setTimeout(() => {
+            inputRef.current?.blur()
+            inputRef.current?.focus()
+          }, 100)
+        }
+      }
+
+      appState.current = nextAppState
+    })
+
+    return () => {
+      subscription.remove()
+    }
+  }, [])
 
   const submit = () => {
     const t = text.trim()
@@ -25,6 +56,7 @@ export default function MessageInput() {
     <View style={[styles.wrapper, { borderTopColor: colors.border, backgroundColor: colors.bg }]}>
       <View style={styles.row}>
         <TextInput
+          ref={inputRef}
           placeholder="Say something…"
           value={text}
           onChangeText={(t) => { setText(t); debouncedTyping(t.length > 0) }}

@@ -6,10 +6,10 @@ import { ThemeProvider, useTheme } from '../src/state/ThemeContext'
 import { OnboardingProvider } from '../src/state/OnboardingContext'
 
 function RootInner() {
-  const { mode } = useTheme()
+  const { resolvedMode } = useTheme()
   return (
     <>
-      <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+      <StatusBar style={resolvedMode === 'dark' ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false }} />
     </>
   )
