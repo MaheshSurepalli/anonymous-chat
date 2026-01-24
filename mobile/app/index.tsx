@@ -6,6 +6,7 @@ import IdleScreen from '../src/components/IdleScreen'
 import SearchingScreen from '../src/components/SearchingScreen'
 import MessageList from '../src/components/MessageList'
 import MessageInput from '../src/components/MessageInput'
+import TutorialOverlay from '../src/components/TutorialOverlay'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '../src/state/ThemeContext'
 
@@ -14,7 +15,7 @@ export default function Index() {
   const { colors } = useTheme()
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['left','right','bottom']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['left', 'right', 'bottom']}>
       <HeaderBar />
       {status === 'idle' && <IdleScreen />}
       {status === 'searching' && <SearchingScreen />}
@@ -31,6 +32,7 @@ export default function Index() {
           </View>
         </KeyboardAvoidingView>
       )}
+      <TutorialOverlay />
     </SafeAreaView>
   )
 }

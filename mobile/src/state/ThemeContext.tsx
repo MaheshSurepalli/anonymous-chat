@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useMemo, useState } from 'react'
 import { Appearance, ColorSchemeName } from 'react-native'
 
-type ThemeMode = 'light' | 'dark'
+type ThemeMode = 'light' | 'dark' | 'system'
 
 type Colors = {
   bg: string
@@ -50,6 +50,7 @@ const darkColors: Colors = {
 
 type ThemeContextValue = {
   mode: ThemeMode
+  resolvedMode: 'light' | 'dark'
   colors: Colors
   toggle: () => void
   setMode: (m: ThemeMode) => void
@@ -58,16 +59,30 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const sys: ColorSchemeName = Appearance.getColorScheme()
-  const [mode, setMode] = useState<ThemeMode>((sys as ThemeMode) || 'light')
+  const systemColorScheme = Appearance.getColorScheme()
+  const [mode, setMode] = useState<ThemeMode>('system')
+  const [systemMode, setSystemMode] = useState<'light' | 'dark'>(systemColorScheme === 'dark' ? 'dark' : 'light')
 
-  const colors = mode === 'dark' ? darkColors : lightColors
+  React.useEffect(() => {
+    const subscription = Appearance.addChangeListener(({ colorScheme }) => {
+      setSystemMode(colorScheme === 'dark' ? 'dark' : 'light')
+    })
+    return () => subscription.remove()
+  }, [])
+
+  const resolvedMode = mode === 'system' ? systemMode : mode
+  const colors = resolvedMode === 'dark' ? darkColors : lightColors
+
   const value = useMemo<ThemeContextValue>(() => ({
     mode,
+    resolvedMode,
     colors,
-    toggle: () => setMode((m) => (m === 'dark' ? 'light' : 'dark')),
+    toggle: () => setMode((m) => {
+      if (m === 'system') return resolvedMode === 'dark' ? 'light' : 'dark'
+      return m === 'dark' ? 'light' : 'dark'
+    }),
     setMode,
-  }), [mode])
+  }), [mode, resolvedMode, colors])
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }

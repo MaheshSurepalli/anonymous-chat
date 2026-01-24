@@ -3,6 +3,7 @@ import { ChatProvider } from '../src/state/ChatContext'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { ThemeProvider, useTheme } from '../src/state/ThemeContext'
+import { OnboardingProvider } from '../src/state/OnboardingContext'
 
 function RootInner() {
   const { mode } = useTheme()
@@ -18,9 +19,11 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <ChatProvider>
-          <RootInner />
-        </ChatProvider>
+        <OnboardingProvider>
+          <ChatProvider>
+            <RootInner />
+          </ChatProvider>
+        </OnboardingProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   )

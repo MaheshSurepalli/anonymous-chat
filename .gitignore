@@ -5,8 +5,11 @@ mobile/node_modules
 
 # Python
 backend/__pycache__
-backend/venv
+backend/app/__pycache__
+backend/.venv
 backend/.pytest_cache
+backend/build
+backend/stranger_chat_backend.egg-info
 
 # General
 .env
