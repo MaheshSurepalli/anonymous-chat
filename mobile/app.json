@@ -3,7 +3,7 @@
     "name": "Stranger Chat",
     "slug": "stranger-chat",
     "version": "1.0.3",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "stranger-chat",
     "userInterfaceStyle": "automatic",
