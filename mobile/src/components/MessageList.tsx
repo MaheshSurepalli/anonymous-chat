@@ -1,11 +1,11 @@
 import React, { useMemo } from 'react'
-import { FlatList, ListRenderItem, StyleSheet, Text, View } from 'react-native'
+import { FlatList, ListRenderItem, Pressable, StyleSheet, Text, View } from 'react-native'
 import type { Msg } from '../state/ChatContext'
 import { useChat } from '../state/ChatContext'
 import { useTheme } from '../state/ThemeContext'
 
 export default function MessageList() {
-  const { messages, typing, partner } = useChat()
+  const { messages, typing, partner, sendMessage } = useChat()
   const { colors } = useTheme()
 
   // Reverse messages for inverted list (Index 0 = Newest = Bottom)
@@ -40,7 +40,31 @@ export default function MessageList() {
         data={reversedMessages}
         keyExtractor={(m) => m.id}
         renderItem={renderItem}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, reversedMessages.length === 0 && styles.emptyContent]}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={[styles.emptyTitle, { color: colors.muted }]}>Break the ice 🧊</Text>
+            <View style={styles.chipContainer}>
+              {[
+                'What’s your most embarrassing moment? 😳',
+                'Truth or Dare? 🎲',
+                'Rate your day 1–10 📉',
+              ].map((text) => (
+                <Pressable
+                  key={text}
+                  style={({ pressed }) => [
+                    styles.chip,
+                    { backgroundColor: colors.card, borderColor: colors.border },
+                    pressed && { opacity: 0.8, transform: [{ scale: 0.98 }] },
+                  ]}
+                  onPress={() => sendMessage(text)}
+                >
+                  <Text style={[styles.chipText, { color: colors.text }]}>{text}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        }
         ListHeaderComponent={typing ? <TypingIndicator /> : null}
       />
     </View>
@@ -56,4 +80,19 @@ const styles = StyleSheet.create({
   avatar: { fontSize: 20, marginBottom: 2 },
   bubble: { maxWidth: '80%', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16 },
   reaction: { marginTop: 4 },
+  emptyContent: { flex: 1, justifyContent: 'center' },
+  emptyContainer: { alignItems: 'center', gap: 24, paddingVertical: 40 },
+  emptyTitle: { fontSize: 16, fontWeight: '500' },
+  chipContainer: { width: '100%', gap: 12 },
+  chip: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 320,
+    alignItems: 'center',
+  },
+  chipText: { fontSize: 14, fontWeight: '500' },
 })

@@ -25,11 +25,11 @@ export default function IdleScreen() {
   }, [])
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg }] }>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <View style={styles.content}>
         <Text style={[styles.quote, { color: colors.text }]} key={i}>{QUOTES[i]}</Text>
-        {typeof queueSize === 'number' && (
-          <Text style={[styles.queue, { color: colors.muted }]}>~{queueSize} waiting</Text>
+        {typeof queueSize === 'number' && queueSize > 2 && (
+          <Text style={[styles.queue, { color: colors.muted }]}>{queueSize} waiting</Text>
         )}
         <Pressable accessibilityRole="button" onPress={() => { console.log('[SC] Find button pressed'); connectAndFind() }} style={({ pressed }) => [styles.btn, { backgroundColor: colors.primaryBg }, pressed && { opacity: 0.9 }]}>
           <Text style={[styles.btnText, { color: colors.primaryText }]}>Find Stranger</Text>
