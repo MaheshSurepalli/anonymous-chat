@@ -2,10 +2,10 @@
   "expo": {
     "name": "Stranger Chat",
     "slug": "stranger-chat",
-    "version": "1.0.2",
-    "orientation": "portrait",
+    "version": "1.0.4",
+    "orientation": "default",
     "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "scheme": "stranger-chat",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -39,7 +39,8 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "extra": {
       "wsUrl": "wss://achat-egazbnh3d3f9hkaz.centralindia-01.azurewebsites.net/ws",

@@ -1,15 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
 import ConfirmDialog from './ConfirmDialog'
+import SettingsDialog from './SettingsDialog'
 import { useChat } from '../state/ChatContext'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '../state/ThemeContext'
 
 export default function HeaderBar() {
   const { status, partner, startedAt, next, leave } = useChat()
-  const [active, setActive] = useState<null | 'next' | 'end' | 'report'>(null)
+  const [active, setActive] = useState<null | 'next' | 'end' | 'report' | 'settings'>(null)
   const [now, setNow] = useState(() => Date.now())
-  const { mode, colors, toggle } = useTheme()
+  const { mode, colors } = useTheme()
 
   useEffect(() => {
     if (status !== 'matched' || !startedAt) {
@@ -38,8 +39,8 @@ export default function HeaderBar() {
             )}
           </View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Pressable onPress={toggle} style={[styles.iconBtn, { borderColor: colors.border }]}>
-              <Text style={[styles.iconBtnText, { color: colors.text }]}>{mode === 'dark' ? 'Light' : 'Dark'}</Text>
+            <Pressable onPress={() => setActive('settings')} style={[styles.iconBtn, { borderColor: colors.border }]}>
+              <Text style={[styles.iconBtnText, { color: colors.text }]}>Settings</Text>
             </Pressable>
             {status === 'matched' && (
               <>
@@ -68,6 +69,11 @@ export default function HeaderBar() {
           </View>
         </View>
       </SafeAreaView>
+
+      <SettingsDialog
+        open={active === 'settings'}
+        onClose={() => setActive(null)}
+      />
 
       <ConfirmDialog
         open={active === 'next'}
