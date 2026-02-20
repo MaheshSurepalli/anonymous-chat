@@ -33,10 +33,10 @@ push_tokens = Table(
     Column("last_sent_at", DateTime, nullable=True),
     Column("created_at", DateTime, server_default=func.now()),
 )
+IST = timezone(timedelta(hours=5, minutes=30))
 
-
-def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+def _now_ist() -> datetime:
+    return datetime.now(IST)
 
 
 def init_db():
@@ -53,7 +53,7 @@ def init_db():
 
 
 def add_token(user_id: str, token: str, device_name: Optional[str] = None):
-    now = _utcnow()
+    now = _now_ist()
     with engine.begin() as conn:
         if engine.dialect.name == "sqlite":
             conn.execute(text("""
@@ -79,7 +79,7 @@ def delete_token(token: str):
 
 
 def get_eligible_tokens(limit: int = 100, cooldown_hours: int = 1, exclude_user_ids: List[str] = None) -> List[str]:
-    cutoff = _utcnow() - timedelta(hours=cooldown_hours)
+    cutoff = _now_ist() - timedelta(hours=cooldown_hours)
 
     # Tokens are eligible if never sent (NULL) or sent before the cutoff
     query = select(push_tokens.c.token).where(
@@ -99,7 +99,7 @@ def get_eligible_tokens(limit: int = 100, cooldown_hours: int = 1, exclude_user_
 def update_last_sent(tokens: List[str]):
     if not tokens:
         return
-    now = _utcnow()
+    now = _now_ist()
     with engine.begin() as conn:
         conn.execute(
             update(push_tokens)
