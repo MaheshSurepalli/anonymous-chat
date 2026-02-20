@@ -35,6 +35,22 @@ async def admin_tokens():
         rows = conn.execute(select(push_tokens)).fetchall()
     return [dict(r._mapping) for r in rows]
 
+@app.delete("/admin/tokens/{token}")
+async def delete_single_token(token: str):
+    """Delete a specific push token."""
+    from . import database
+    database.delete_token(token)
+    return {"status": "deleted", "token": token}
+
+@app.delete("/admin/tokens")
+async def delete_all_tokens():
+    """Delete all push tokens."""
+    from .database import engine, push_tokens
+    from sqlalchemy import delete
+    with engine.begin() as conn:
+        result = conn.execute(delete(push_tokens))
+    return {"status": "deleted", "count": result.rowcount}
+
 @app.websocket("/ws")
 async def ws_endpoint(ws: WebSocket):
     await ws.accept()
