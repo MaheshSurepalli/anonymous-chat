@@ -1,6 +1,9 @@
-import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import * as Device from 'expo-device'
 import type { ClientToServer, ServerToClient } from '../types/events'
 import { getWsUrl } from '../utils/getWsUrl'
+import { usePushNotifications } from '../hooks/usePushNotifications'
 
 export type Status = 'idle' | 'searching' | 'matched'
 
@@ -35,25 +38,60 @@ const randomEmoji = () => {
 
 const genId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
 
+const USER_ID_KEY = '@stranger_chat_user_id'
+
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const wsRef = useRef<WebSocket | null>(null)
   const typingClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [status, setStatus] = useState<Status>('idle')
   const [socketOpen, setSocketOpen] = useState(false)
-  const [userId] = useState<string>(genId())
+  const [userId, setUserId] = useState<string>('')
+  const [ready, setReady] = useState(false)
   const [avatar] = useState<string>(randomEmoji())
   const [room, setRoom] = useState<string | null>(null)
   const [partner, setPartner] = useState<Partner>(null)
   const [startedAt, setStartedAt] = useState<number | null>(null)
   const [messages, setMessages] = useState<Msg[]>([])
   const [typing, setTyping] = useState(false)
+
   const [queueSize, setQueueSize] = useState<number | null>(null)
 
-  const handleClose = useCallback(() => {
+  // Load or create persistent user_id
+  useEffect(() => {
+    (async () => {
+      let id = await AsyncStorage.getItem(USER_ID_KEY)
+      if (!id) {
+        id = genId()
+        await AsyncStorage.setItem(USER_ID_KEY, id)
+        console.log('[WS] Generated new persistent user_id:', id)
+      } else {
+        console.log('[WS] Loaded persistent user_id:', id)
+      }
+      setUserId(id)
+      setReady(true)
+    })()
+  }, [])
+
+  const { expoPushToken } = usePushNotifications()
+
+  useEffect(() => {
+    if (socketOpen && expoPushToken && userId) {
+      const ws = wsRef.current
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        const deviceName = `${Device.manufacturer ?? ''} ${Device.modelName ?? ''}`.trim() || 'Unknown'
+        console.log('[WS] Registering push token:', expoPushToken, 'device:', deviceName)
+        ws.send(JSON.stringify({ type: 'register_push', token: expoPushToken, userId, deviceName }))
+      }
+    }
+  }, [socketOpen, expoPushToken, userId])
+
+  const handleClose = useCallback((ev?: any) => {
+    console.log('[WS] Connection closed', ev?.code, ev?.reason)
     setSocketOpen(false)
     wsRef.current = null
     if (status === 'searching') {
+      console.log('[WS] Was searching, will reconnect in 1s...')
       setTimeout(() => connectAndFind(), 1000)
     }
   }, [status])
@@ -61,6 +99,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const handleMessage = useCallback((ev: any) => {
     try {
       const data = JSON.parse((ev as any).data) as ServerToClient
+      console.log('[WS] Received:', data.type)
       if (data.type === 'paired') {
         setStatus('matched')
         setRoom(data.room)
@@ -89,6 +128,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           setTyping(false)
           setStartedAt(null)
         } else if (data.code === 'idle') {
+          // Partner left — close connection, go fully idle
+          const ws = wsRef.current
+          if (ws) ws.close()
+          wsRef.current = null
+          setSocketOpen(false)
           setStatus('idle')
           setPartner(null)
           setRoom(null)
@@ -100,13 +144,18 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         setQueueSize(data.count)
       }
     } catch (e) {
-      // noop
+      console.error('[WS] Failed to parse message:', e)
     }
   }, [])
 
   const connectAndFind = useCallback(() => {
+    if (!ready) {
+      console.warn('[WS] user_id not loaded yet, ignoring connectAndFind')
+      return
+    }
     const existing = wsRef.current
     if (existing && existing.readyState === WebSocket.OPEN) {
+      console.log('[WS] Reusing existing connection, sending join_queue')
       const evt: ClientToServer = { type: 'join_queue', userId, avatar }
       existing.send(JSON.stringify(evt))
       setStatus('searching')
@@ -118,9 +167,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     }
 
     const url = getWsUrl()
+    console.log('[WS] Opening new connection to:', url)
     const ws = new WebSocket(url)
     wsRef.current = ws
     ws.onopen = () => {
+      console.log('[WS] ✅ Connected successfully!')
       setSocketOpen(true)
       setStatus('searching')
       setPartner(null)
@@ -129,13 +180,14 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       setTyping(false)
       const evt: ClientToServer = { type: 'join_queue', userId, avatar }
       ws.send(JSON.stringify(evt))
+      console.log('[WS] Sent join_queue for user:', userId)
     }
     ws.onmessage = handleMessage
     ws.onclose = handleClose
-    ws.onerror = () => {
-      // Let close handler handle backoff
+    ws.onerror = (err) => {
+      console.error('[WS] ❌ Connection error:', JSON.stringify(err))
     }
-  }, [avatar, handleClose, handleMessage, userId])
+  }, [ready, avatar, handleClose, handleMessage, userId])
 
   const sendMessage = useCallback((text: string) => {
     const ws = wsRef.current
@@ -169,7 +221,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     const ws = wsRef.current
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: 'leave' } satisfies ClientToServer))
+      ws.close()
     }
+    wsRef.current = null
+    setSocketOpen(false)
     setStatus('idle')
     setPartner(null)
     setRoom(null)

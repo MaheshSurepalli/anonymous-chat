@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "91317978217",
+    "project_id": "strangerchat-3cdfa",
+    "storage_bucket": "strangerchat-3cdfa.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:91317978217:android:a0f8616b7a3dbe60578ef8",
+        "android_client_info": {
+          "package_name": "com.mahesh.strangerchat.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAqUTTLMUI74F1DQZQ_slbD01wLkfcFnWM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

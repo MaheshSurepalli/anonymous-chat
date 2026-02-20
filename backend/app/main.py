@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .matchmaker import Matchmaker
 from .schemas import ClientEvent, ErrorEvt
 from .settings import settings
+from . import database
 
 app = FastAPI(title="Stranger Chat Backend")
 app.add_middleware(
@@ -16,6 +17,10 @@ app.add_middleware(
 )
 
 mm = Matchmaker()
+
+@app.on_event("startup")
+async def startup_event():
+    database.init_db()
 
 @app.get("/health")
 async def health():
@@ -43,6 +48,13 @@ async def ws_endpoint(ws: WebSocket):
                     continue
                 await mm.register(user_id, ws, avatar)
                 await mm.join_queue(user_id)
+            elif t == "register_push":
+                token = data.get("token")
+                p_user_id = data.get("userId") or user_id
+                device_name = data.get("deviceName")
+                
+                if p_user_id and token:
+                    database.add_token(p_user_id, token, device_name=device_name)
             elif t == "message":
                 if not user_id:
                     await ws.send_text(json.dumps(ErrorEvt(message="Not joined").model_dump()))
