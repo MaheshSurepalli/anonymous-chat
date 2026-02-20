@@ -94,7 +94,10 @@ export const useChatStore = create<Store>((set, get) => ({
         if (data.code === 'searching') {
           set({ status: 'searching', partner: null, room: null, messages: [], typing: false, startedAt: null })
         } else if (data.code === 'idle') {
-          set({ status: 'idle', partner: null, room: null, messages: [], typing: false, startedAt: null })
+          // Partner left — close connection, go fully idle
+          const { socket } = get()
+          if (socket) socket.close()
+          set({ socket: null, status: 'idle', partner: null, room: null, messages: [], typing: false, startedAt: null })
         }
       } else if (data.type === 'queue_size') {
         set({ queueSize: data.count })
@@ -139,8 +142,9 @@ export const useChatStore = create<Store>((set, get) => ({
     const { socket } = get()
     if (socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({ type: 'leave' } satisfies ClientToServer))
+      socket.close()
     }
-    set({ status: 'idle', partner: null, room: null, messages: [], typing: false, startedAt: null })
+    set({ socket: null, status: 'idle', partner: null, room: null, messages: [], typing: false, startedAt: null })
   },
 
   setTheme: (t) => {

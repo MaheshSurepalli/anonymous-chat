@@ -2,15 +2,20 @@ import asyncio
 import json
 import time
 import uuid
+import logging
 from collections import deque
 from typing import Dict
 
 from fastapi import WebSocket
 
+logger = logging.getLogger("uvicorn.error")
+
 from .schemas import (
     Paired, Partner, QueueSize, ServerEvent, ServerMessage, ServerTyping, System
 )
 from .typing_utils import Room, UserConn
+from .push_service import push_service
+from . import database
 
 class Matchmaker:
     def __init__(self) -> None:
@@ -18,6 +23,7 @@ class Matchmaker:
         self.waiting: deque[str] = deque()
         self.rooms: Dict[str, Room] = {}
         self.lock = asyncio.Lock()
+        self.previous_wait_count = 0
 
     async def register(self, user_id: str, ws: WebSocket, avatar: str) -> None:
         self.users[user_id] = {"id": user_id, "ws": ws, "avatar": avatar}
@@ -26,6 +32,14 @@ class Matchmaker:
         async with self.lock:
             if user_id not in self.waiting and not self.users.get(user_id, {}).get("room_id"):
                 self.waiting.append(user_id)
+                
+                # Check for liquidity event (0 -> >=1)
+                current_count = len(self.waiting)
+                if current_count >= 1:
+                    logger.info(f"Liquidity event detected: {current_count} in queue. Triggering notifications.")
+                    await self._trigger_notifications(current_count)
+                
+                self.previous_wait_count = current_count
                 await self._broadcast_queue_size()
             await self._try_pair()
 
@@ -63,6 +77,24 @@ class Matchmaker:
             # Remove user
             self.users.pop(user_id, None)
             await self._broadcast_queue_size()
+
+    async def _trigger_notifications(self, pool_size: int) -> None:
+        # Get all tokens that are NOT currently connected
+        # connected_user_ids = set(self.users.keys()) # users in memory are connected
+        # In this simple implementation, the DB stores tokens for all who registered.
+        # We want to exclude tokens belonging to currently connected users.
+        
+        # 1. Get eligible tokens from DB (respecting cooldown)
+        # 2. Filter out tokens that belong to currently connected users
+        
+        connected_users = list(self.users.keys())
+        # 1-hour cooldown: each device gets at most 1 push per hour
+        eligible_tokens = database.get_eligible_tokens(limit=100, cooldown_hours=1, exclude_user_ids=connected_users)
+        
+        logger.info(f"Found {len(eligible_tokens)} eligible tokens for push (active users: {len(connected_users)})")
+
+        if eligible_tokens:
+             asyncio.create_task(push_service.send_push_notifications(eligible_tokens, pool_size))
 
     async def _teardown_room(self, room_id: str, leaver: str | None, partner_idle: bool) -> None:
         room = self.rooms.pop(room_id, None)

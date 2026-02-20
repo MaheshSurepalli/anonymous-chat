@@ -19,10 +19,6 @@ export default function IdleScreen() {
   const [i, setI] = useState(0)
   const { colors } = useTheme()
 
-  useEffect(() => {
-    const id = setInterval(() => setI((x) => (x + 1) % QUOTES.length), 4000)
-    return () => clearInterval(id)
-  }, [])
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
