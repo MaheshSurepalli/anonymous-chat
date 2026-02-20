@@ -1,0 +1,23 @@
+# Backend (not needed for mobile build)
+backend/
+
+# Frontend (not needed for mobile build)
+frontend/
+
+# Node modules (EAS installs from package.json)
+mobile/node_modules/
+
+# Native build artifacts (EAS builds from source)
+mobile/android/
+mobile/ios/
+
+# Expo cache
+mobile/.expo/
+
+# Python
+*.pyc
+__pycache__/
+.venv/
+
+# Logs
+*.log

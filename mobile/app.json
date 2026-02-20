@@ -2,7 +2,7 @@
   "expo": {
     "name": "Stranger Chat",
     "slug": "stranger-chat",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "stranger-chat",
@@ -14,7 +14,6 @@
     "android": {
       "package": "com.mahesh.strangerchat.app",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/icon.png"
