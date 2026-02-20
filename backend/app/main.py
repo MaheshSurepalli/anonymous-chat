@@ -26,6 +26,15 @@ async def startup_event():
 async def health():
     return {"status": "ok"}
 
+@app.get("/admin/tokens")
+async def admin_tokens():
+    """View all registered push tokens (for debugging)."""
+    from .database import engine, push_tokens
+    from sqlalchemy import select
+    with engine.connect() as conn:
+        rows = conn.execute(select(push_tokens)).fetchall()
+    return [dict(r._mapping) for r in rows]
+
 @app.websocket("/ws")
 async def ws_endpoint(ws: WebSocket):
     await ws.accept()
