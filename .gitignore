@@ -2,6 +2,7 @@
 frontend/node_modules
 frontend/dist
 mobile/node_modules
+mobile/android/local.properties
 
 # Python
 **/__pycache__/
@@ -11,8 +12,9 @@ mobile/node_modules
 backend/.venv
 backend/.pytest_cache
 backend/build
-backend/*.db
+**/*.db
 
 # General
 .env
 *.log
+build_log.txt

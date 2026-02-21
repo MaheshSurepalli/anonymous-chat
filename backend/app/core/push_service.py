@@ -30,6 +30,8 @@ class PushService:
                 "sound": "default",
                 "title": "Stranger Chat",
                 "body": message_body,
+                "priority": "high",          # FCM high-priority → heads-up on Android / immediate on iOS
+                "channelId": "default",      # matches AndroidImportance.MAX channel in the app
                 "data": {"pool_size": pool_size},
             })
 
