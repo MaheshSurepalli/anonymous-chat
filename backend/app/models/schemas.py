@@ -1,6 +1,9 @@
 from pydantic import BaseModel, Field
 
-# Client → Server
+# ──────────────────────────────────────────────
+# Client → Server events
+# ──────────────────────────────────────────────
+
 class JoinQueue(BaseModel):
     type: str = Field("join_queue", frozen=True)
     userId: str
@@ -25,7 +28,10 @@ class Leave(BaseModel):
 
 ClientEvent = JoinQueue | ClientMessage | Typing | Next | Leave
 
-# Server → Client
+# ──────────────────────────────────────────────
+# Server → Client events
+# ──────────────────────────────────────────────
+
 class Partner(BaseModel):
     id: str
     avatar: str

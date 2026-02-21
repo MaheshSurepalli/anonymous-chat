@@ -4,12 +4,14 @@ frontend/dist
 mobile/node_modules
 
 # Python
-backend/__pycache__
-backend/app/__pycache__
+**/__pycache__/
+**/*.py[cod]
+*.pyo
+*.egg-info/
 backend/.venv
 backend/.pytest_cache
 backend/build
-backend/stranger_chat_backend.egg-info
+backend/*.db
 
 # General
 .env
