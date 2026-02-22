@@ -4,7 +4,7 @@ import logging
 
 from sqlalchemy import (
     create_engine, MetaData, Table, Column, String, Integer,
-    DateTime, delete, select, update, text, func,
+    DateTime, delete, select, update, text, func, case
 )
 from sqlalchemy.pool import StaticPool, NullPool
 
@@ -40,6 +40,9 @@ push_tokens = Table(
     Column("user_id", String, nullable=True),
     Column("device_name", String, nullable=True),
     Column("push_count", Integer, server_default=text("0")),
+    Column("app_opens_total", Integer, server_default=text("0")),
+    Column("app_opens_today", Integer, server_default=text("0")),
+    Column("last_opened_at", DateTime, nullable=True),
     Column("last_sent_at", DateTime, nullable=True),
     Column("created_at", DateTime, server_default=func.now()),
 )
@@ -75,15 +78,35 @@ def init_db() -> None:
 
 def add_token(user_id: str, token: str, device_name: Optional[str] = None) -> None:
     now = _now_ist()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    
     with engine.begin() as conn:
         if engine.dialect.name == "sqlite":
             conn.execute(
                 text("""
-                    INSERT INTO push_tokens (token, user_id, device_name, last_sent_at, created_at)
-                    VALUES (:token, :user_id, :device_name, NULL, :now)
-                    ON CONFLICT(token) DO UPDATE SET user_id=:user_id, device_name=:device_name
+                    INSERT INTO push_tokens (
+                        token, user_id, device_name,
+                        app_opens_total, app_opens_today, last_opened_at,
+                        last_sent_at, created_at
+                    )
+                    VALUES (:token, :user_id, :device_name, 1, 1, :now, NULL, :now)
+                    ON CONFLICT(token) DO UPDATE SET
+                        user_id = :user_id,
+                        device_name = :device_name,
+                        app_opens_total = push_tokens.app_opens_total + 1,
+                        app_opens_today = CASE
+                            WHEN push_tokens.last_opened_at >= :today_start THEN push_tokens.app_opens_today + 1
+                            ELSE 1
+                        END,
+                        last_opened_at = :now
                 """),
-                {"token": token, "user_id": user_id, "device_name": device_name, "now": now},
+                {
+                    "token": token, 
+                    "user_id": user_id, 
+                    "device_name": device_name, 
+                    "now": now,
+                    "today_start": today_start
+                },
             )
         else:
             from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -92,18 +115,37 @@ def add_token(user_id: str, token: str, device_name: Optional[str] = None) -> No
                 token=token,
                 user_id=user_id,
                 device_name=device_name,
+                app_opens_total=1,
+                app_opens_today=1,
+                last_opened_at=now,
                 last_sent_at=None,
                 created_at=now,
-            ).on_conflict_do_update(
-                index_elements=["token"],
-                set_={"user_id": user_id, "device_name": device_name},
             )
-            conn.execute(stmt)
+            
+            # The EXCLUDED table represents the row proposed for insertion
+            update_stmt = stmt.on_conflict_do_update(
+                index_elements=["token"],
+                set_={
+                    "user_id": stmt.excluded.user_id,
+                    "device_name": stmt.excluded.device_name,
+                    "app_opens_total": push_tokens.c.app_opens_total + 1,
+                    "app_opens_today": case(
+                        (push_tokens.c.last_opened_at >= today_start, push_tokens.c.app_opens_today + 1),
+                        else_=1
+                    ),
+                    "last_opened_at": stmt.excluded.last_opened_at
+                },
+            )
+            conn.execute(update_stmt)
 
 
 def delete_token(token: str) -> None:
-    with engine.begin() as conn:
-        conn.execute(delete(push_tokens).where(push_tokens.c.token == token))
+    try:
+        with engine.begin() as conn:
+            conn.execute(delete(push_tokens).where(push_tokens.c.token == token))
+        logger.info(f"✅ Successfully deleted invalid token from database: {token}")
+    except Exception as e:
+        logger.error(f"❌ Failed to delete token {token} from database: {e}")
 
 
 def get_eligible_tokens(
@@ -146,18 +188,39 @@ def update_last_sent(tokens: List[str]) -> None:
 # ──────────────────────────────────────────────
 
 def get_token_stats() -> dict:
-    """Return total registered token count and how many were created today (IST)."""
+    """Return total registered token count and how many were created today (IST), plus app opens."""
     today_start = _now_ist().replace(hour=0, minute=0, second=0, microsecond=0)
 
     with engine.connect() as conn:
-        total: int = conn.execute(
+        total_users: int = conn.execute(
             select(func.count()).select_from(push_tokens)
         ).scalar() or 0
 
-        today: int = conn.execute(
+        new_users_today: int = conn.execute(
             select(func.count())
             .select_from(push_tokens)
             .where(push_tokens.c.created_at >= today_start)
         ).scalar() or 0
+        
+        # Calculate engagement metrics
+        app_opens_today: int = conn.execute(
+            select(func.sum(push_tokens.c.app_opens_today))
+            .where(push_tokens.c.last_opened_at >= today_start)
+        ).scalar() or 0
+        
+        app_opens_multi_day_today: int = conn.execute(
+            select(func.count())
+            .where(push_tokens.c.last_opened_at >= today_start)
+        ).scalar() or 0
+        
+        app_opens_total_all_time: int = conn.execute(
+            select(func.sum(push_tokens.c.app_opens_total))
+        ).scalar() or 0
 
-    return {"total": total, "today": today}
+    return {
+        "users_total": total_users,
+        "new_users_today": new_users_today,
+        "active_users_today": app_opens_multi_day_today,
+        "app_opens_today": app_opens_today,
+        "app_opens_all_time": app_opens_total_all_time,
+    }

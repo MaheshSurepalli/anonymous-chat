@@ -23,10 +23,13 @@ async def list_tokens():
 @router.get("/admin/tokens/stats")
 async def token_stats():
     """
-    Return the count of registered push notification devices.
+    Return the count of registered push notification devices and daily app engagement metrics.
 
-    - **total**: all-time registered token count
-    - **today**: tokens registered today (IST)
+    - **users_total**: all-time registered token count
+    - **new_users_today**: tokens registered today (IST)
+    - **active_users_today**: total unique devices that opened the app today
+    - **app_opens_today**: total number of times the app was opened today
+    - **app_opens_all_time**: total number of times the app was opened across all users
     """
     return database.get_token_stats()
 
