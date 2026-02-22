@@ -42,17 +42,23 @@ push_tokens = Table(
     Column("push_count", Integer, server_default=text("0")),
     Column("app_opens_total", Integer, server_default=text("0")),
     Column("app_opens_today", Integer, server_default=text("0")),
-    Column("last_opened_at", DateTime, nullable=True),
-    Column("last_sent_at", DateTime, nullable=True),
-    Column("created_at", DateTime, server_default=func.now()),
+    Column("last_opened_at", DateTime(timezone=True), nullable=True),
+    Column("last_sent_at", DateTime(timezone=True), nullable=True),
+    Column("created_at", DateTime(timezone=True), server_default=func.now()),
 )
 
-# IST timezone helper
+# UTC helper
+def _now_utc() -> datetime:
+    return datetime.now(timezone.utc)
+
+# IST helper
 IST = timezone(timedelta(hours=5, minutes=30))
 
-
-def _now_ist() -> datetime:
-    return datetime.now(IST)
+def _ist_today_start_utc() -> datetime:
+    """Return the exact UTC equivalent of midnight today in IST."""
+    now_ist = datetime.now(IST)
+    today_start_ist = now_ist.replace(hour=0, minute=0, second=0, microsecond=0)
+    return today_start_ist.astimezone(timezone.utc)
 
 
 # ──────────────────────────────────────────────
@@ -77,8 +83,8 @@ def init_db() -> None:
 # ──────────────────────────────────────────────
 
 def add_token(user_id: str, token: str, device_name: Optional[str] = None) -> None:
-    now = _now_ist()
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    now = _now_utc()
+    today_start = _ist_today_start_utc()
     
     with engine.begin() as conn:
         if engine.dialect.name == "sqlite":
@@ -154,7 +160,7 @@ def get_eligible_tokens(
     exclude_user_ids: Optional[List[str]] = None,
 ) -> List[str]:
     """Return tokens that haven't been notified within the cooldown window."""
-    cutoff = _now_ist() - timedelta(minutes=cooldown_minutes)
+    cutoff = _now_utc() - timedelta(minutes=cooldown_minutes)
 
     query = select(push_tokens.c.token).where(
         (push_tokens.c.last_sent_at == None)  # noqa: E711
@@ -174,7 +180,7 @@ def get_eligible_tokens(
 def update_last_sent(tokens: List[str]) -> None:
     if not tokens:
         return
-    now = _now_ist()
+    now = _now_utc()
     with engine.begin() as conn:
         conn.execute(
             update(push_tokens)
@@ -189,7 +195,7 @@ def update_last_sent(tokens: List[str]) -> None:
 
 def get_token_stats() -> dict:
     """Return total registered token count and how many were created today (IST), plus app opens."""
-    today_start = _now_ist().replace(hour=0, minute=0, second=0, microsecond=0)
+    today_start = _ist_today_start_utc()
 
     with engine.connect() as conn:
         total_users: int = conn.execute(

@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import APIRouter
 from sqlalchemy import select, delete
 
@@ -14,10 +15,20 @@ async def health():
 
 @router.get("/admin/tokens")
 async def list_tokens():
-    """List all registered push tokens."""
+    """List all registered push tokens in IST."""
     with engine.connect() as conn:
         rows = conn.execute(select(push_tokens)).fetchall()
-    return [dict(r._mapping) for r in rows]
+        
+    result = []
+    for r in rows:
+        d = dict(r._mapping)
+        for key, value in d.items():
+            if isinstance(value, datetime):
+                # Convert backend UTC straight into IST for the API consumer
+                d[key] = value.astimezone(database.IST)
+        result.append(d)
+        
+    return result
 
 
 @router.get("/admin/tokens/stats")
