@@ -15,8 +15,10 @@ export default function Index() {
   const { colors } = useTheme()
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['left', 'right', 'bottom']}>
-      <HeaderBar />
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <View style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 50 }} pointerEvents="box-none">
+        <HeaderBar />
+      </View>
       {status === 'idle' && <IdleScreen />}
       {status === 'searching' && <SearchingScreen />}
       {status === 'matched' && (
@@ -28,11 +30,13 @@ export default function Index() {
         >
           <View style={{ flex: 1, backgroundColor: colors.bg }}>
             <MessageList />
-            <MessageInput />
+            <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}>
+              <MessageInput />
+            </View>
           </View>
         </KeyboardAvoidingView>
       )}
       <TutorialOverlay />
-    </SafeAreaView>
+    </View>
   )
 }

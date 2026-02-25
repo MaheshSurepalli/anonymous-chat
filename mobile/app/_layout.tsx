@@ -9,7 +9,7 @@ function RootInner() {
   const { resolvedMode } = useTheme()
   return (
     <>
-      <StatusBar style={resolvedMode === 'dark' ? 'light' : 'dark'} />
+      <StatusBar style={resolvedMode === 'dark' ? 'light' : 'dark'} translucent={true} backgroundColor="transparent" />
       <Stack screenOptions={{ headerShown: false }} />
     </>
   )

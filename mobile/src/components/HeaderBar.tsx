@@ -31,8 +31,8 @@ export default function HeaderBar() {
 
   return (
     <>
-      <SafeAreaView edges={['top']} style={{ backgroundColor: colors.card }}>
-        <View style={[styles.header, { borderBottomColor: colors.border, backgroundColor: colors.card }]}>
+      <SafeAreaView edges={['top']} style={{ backgroundColor: 'transparent' }} pointerEvents="box-none">
+        <View style={[styles.header, { borderBottomWidth: 0, backgroundColor: 'transparent' }]} pointerEvents="box-none">
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             {status === 'matched' && partner && (
               <Text style={[styles.sub, { color: colors.muted }]}>{partner.avatar} {timer ?? '--:--'}</Text>

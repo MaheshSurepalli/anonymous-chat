@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react'
-import { Platform, Pressable, StyleSheet, Text, TextInput, View, AppState, Keyboard } from 'react-native'
+import { Platform, Pressable, StyleSheet, Text, TextInput, View, AppState } from 'react-native'
+import { BlurView } from 'expo-blur'
 import { useChat } from '../state/ChatContext'
 import { debounce } from '../utils/debounce'
 import { useTheme } from '../state/ThemeContext'
@@ -7,7 +8,7 @@ import { useTheme } from '../state/ThemeContext'
 export default function MessageInput() {
   const { sendMessage, sendTyping } = useChat()
   const [text, setText] = useState('')
-  const { colors } = useTheme()
+  const { colors, resolvedMode } = useTheme()
   const inputRef = useRef<TextInput>(null)
   const appState = useRef(AppState.currentState)
 
@@ -24,11 +25,7 @@ export default function MessageInput() {
         appState.current.match(/inactive|background/) &&
         nextAppState === 'active'
       ) {
-        // App has come to the foreground
-        // If the input was focused, or if the keyboard thinks it's up, we might need to nudge it.
-        // We force a blur/focus cycle to "wake up" the window soft input mode.
         if (inputRef.current?.isFocused()) {
-          // Small delay to ensure the window is ready to accept layout changes
           setTimeout(() => {
             inputRef.current?.blur()
             inputRef.current?.focus()
@@ -53,7 +50,14 @@ export default function MessageInput() {
   }
 
   return (
-    <View style={[styles.wrapper, { borderTopColor: colors.border, backgroundColor: colors.bg }]}>
+    <BlurView
+      intensity={80}
+      tint={resolvedMode === 'dark' ? 'dark' : 'light'}
+      style={[
+        styles.wrapper,
+        { borderTopColor: resolvedMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }
+      ]}
+    >
       <View style={styles.row}>
         <TextInput
           ref={inputRef}
@@ -64,38 +68,80 @@ export default function MessageInput() {
           numberOfLines={3}
           textAlignVertical="top"
           onSubmitEditing={Platform.OS === 'ios' ? submit : undefined}
-          placeholderTextColor={colors.muted}
-          style={[styles.input, { borderColor: colors.border, backgroundColor: colors.card, color: colors.text }]}
+          placeholderTextColor={resolvedMode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)'}
+          style={[
+            styles.input,
+            {
+              borderColor: resolvedMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+              backgroundColor: resolvedMode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.3)',
+              color: colors.text
+            }
+          ]}
         />
         <Pressable
           onPress={submit}
           disabled={isSendDisabled}
-          style={[
+          style={({ pressed }) => [
             styles.sendBtn,
-            isSendDisabled ? { backgroundColor: '#e5e7eb' } : { backgroundColor: colors.primaryBg }
+            isSendDisabled
+              ? { backgroundColor: resolvedMode === 'dark' ? '#374151' : '#e5e7eb' }
+              : { backgroundColor: colors.primaryBg },
+            pressed && !isSendDisabled && { opacity: 0.8 },
+            !isSendDisabled && styles.sendBtnActive
           ]}
         >
-          <Text style={[styles.sendText, isSendDisabled ? { color: '#6b7280' } : { color: colors.primaryText }]}>Send</Text>
+          <Text style={[
+            styles.sendText,
+            isSendDisabled
+              ? { color: resolvedMode === 'dark' ? '#9ca3af' : '#6b7280' }
+              : { color: colors.primaryText } // this resolves dynamically to contrast
+          ]}>
+            Send
+          </Text>
         </Pressable>
       </View>
-    </View>
+    </BlurView>
   )
 }
 
 const styles = StyleSheet.create({
-  wrapper: { padding: 8, borderTopWidth: StyleSheet.hairlineWidth },
-  row: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  wrapper: {
+    padding: 12,
+    borderTopWidth: StyleSheet.hairlineWidth
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 12
+  },
   input: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 44,
     maxHeight: 160,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    backgroundColor: 'white',
+    fontSize: 16,
+    lineHeight: 20
   },
-  sendBtn: { borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10 },
-  sendText: { fontWeight: '600' },
+  sendBtn: {
+    borderRadius: 22,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 2 // Slightly offset to align dynamically with single-line input
+  },
+  sendBtnActive: {
+    shadowColor: '#ec4899',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4
+  },
+  sendText: {
+    fontWeight: '700',
+    fontSize: 16
+  }
 })
