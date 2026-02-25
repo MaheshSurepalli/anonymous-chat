@@ -37,6 +37,18 @@ async def ws_endpoint(ws: WebSocket):
                 await mm.register(user_id, ws, avatar)
                 await mm.join_queue(user_id)
 
+            elif t == "reconnect":
+                user_id = data.get("userId")
+                if not user_id:
+                    await ws.send_text(json.dumps(ErrorEvt(message="Missing userId").model_dump()))
+                    continue
+                    
+                success = await mm.handle_reconnect(user_id, ws)
+                if success:
+                    await ws.send_text(json.dumps({"type": "system", "code": "reconnected", "message": "Restored"}))
+                else:
+                    await ws.send_text(json.dumps({"type": "system", "code": "idle", "message": "Session expired"}))
+
             elif t == "register_push":
                 token = data.get("token")
                 p_user_id = data.get("userId") or user_id
@@ -62,7 +74,7 @@ async def ws_endpoint(ws: WebSocket):
 
             elif t == "leave":
                 if user_id:
-                    await mm.remove_user(user_id)
+                    await mm.remove_user(user_id, is_disconnect=False)
 
             else:
                 await ws.send_text(json.dumps(ErrorEvt(message="Unknown type").model_dump()))

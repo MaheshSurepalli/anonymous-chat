@@ -26,7 +26,11 @@ class Next(BaseModel):
 class Leave(BaseModel):
     type: str = Field("leave", frozen=True)
 
-ClientEvent = JoinQueue | ClientMessage | Typing | Next | Leave
+class Reconnect(BaseModel):
+    type: str = Field("reconnect", frozen=True)
+    userId: str
+
+ClientEvent = JoinQueue | ClientMessage | Typing | Next | Leave | Reconnect
 
 # ──────────────────────────────────────────────
 # Server → Client events
@@ -55,7 +59,7 @@ class ServerTyping(BaseModel):
 
 class System(BaseModel):
     type: str = Field("system", frozen=True)
-    code: str  # "idle" | "searching"
+    code: str  # "idle" | "searching" | "reconnected"
     message: str
 
 class QueueSize(BaseModel):

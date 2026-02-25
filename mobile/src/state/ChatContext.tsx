@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { AppState, AppStateStatus } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Device from 'expo-device'
 import type { ClientToServer, ServerToClient } from '../types/events'
@@ -43,6 +44,7 @@ const USER_ID_KEY = '@stranger_chat_user_id'
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const wsRef = useRef<WebSocket | null>(null)
   const typingClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const appState = useRef(AppState.currentState)
 
   const [status, setStatus] = useState<Status>('idle')
   const [socketOpen, setSocketOpen] = useState(false)
@@ -76,6 +78,42 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const { expoPushToken } = usePushNotifications()
 
   useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      // If returning to the foreground...
+      if (appState.current.match(/inactive|background/) && nextAppState === 'active') {
+        const ws = wsRef.current
+        console.log('[WS] App came to foreground. Current status:', status, 'Socket:', ws?.readyState)
+
+        // Only attempt to reconnect if we were in the middle of a session
+        if ((status === 'matched' || status === 'searching') && (!ws || ws.readyState !== WebSocket.OPEN)) {
+          console.log('[WS] Connection lost while in background. Attempting to reconnect...')
+
+          const url = getWsUrl()
+          const newWs = new WebSocket(url)
+          wsRef.current = newWs
+
+          newWs.onopen = () => {
+            console.log('[WS] Reconnect socket opened. Sending reconnect event...')
+            if (status === 'matched') {
+              newWs.send(JSON.stringify({ type: 'reconnect', userId }))
+            } else if (status === 'searching') {
+              newWs.send(JSON.stringify({ type: 'join_queue', userId, avatar }))
+            }
+          }
+          newWs.onmessage = handleMessage
+          newWs.onclose = handleClose
+          newWs.onerror = (err) => console.error('[WS] ❌ Reconnect error:', JSON.stringify(err))
+        }
+      }
+      appState.current = nextAppState
+    })
+
+    return () => {
+      subscription.remove()
+    }
+  }, [status, userId, avatar]) // Depend on status so the closure has the latest state
+
+  useEffect(() => {
     if (socketOpen && expoPushToken && userId) {
       const ws = wsRef.current
       if (ws && ws.readyState === WebSocket.OPEN) {
@@ -90,6 +128,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     console.log('[WS] Connection closed', ev?.code, ev?.reason)
     setSocketOpen(false)
     wsRef.current = null
+
+    // Do NOT automatically reset `matched` state here.
+    // We rely on the AppState foreground check or backend 'idle' message 
+    // to cleanly disconnect the user. If they are in the background, we want
+    // the UI to stay on the chat screen so it can reconnect when they return.
     if (status === 'searching') {
       console.log('[WS] Was searching, will reconnect in 1s...')
       setTimeout(() => connectAndFind(), 1000)
@@ -128,7 +171,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           setTyping(false)
           setStartedAt(null)
         } else if (data.code === 'idle') {
-          // Partner left — close connection, go fully idle
+          // Session expired or partner left — close connection, go fully idle
+          console.log('[WS] Received idle system message.')
           const ws = wsRef.current
           if (ws) ws.close()
           wsRef.current = null
@@ -139,6 +183,9 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
           setMessages([])
           setTyping(false)
           setStartedAt(null)
+        } else if (data.code === 'reconnected') {
+          console.log('[WS] Successfully reconnected to room!')
+          setSocketOpen(true)
         }
       } else if (data.type === 'queue_size') {
         setQueueSize(data.count)
