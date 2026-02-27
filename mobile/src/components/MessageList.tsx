@@ -20,15 +20,13 @@ type MsgProps = {
   item: Msg
   partner: any
   colors: any
-  resolvedMode: 'light' | 'dark'
 }
 
-const AnimatedMessageItem = ({ item, partner, colors, resolvedMode }: MsgProps) => {
+const AnimatedMessageItem = ({ item, partner, colors }: MsgProps) => {
   const opacity = useSharedValue(0)
   const translateY = useSharedValue(30)
 
   useEffect(() => {
-    // Entrance animation: Slide up + Fade in
     opacity.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.ease) })
     translateY.value = withSpring(0, { damping: 15, stiffness: 200 })
   }, [])
@@ -46,17 +44,17 @@ const AnimatedMessageItem = ({ item, partner, colors, resolvedMode }: MsgProps) 
       {showAvatar && <Text style={styles.avatar}>{partner.avatar}</Text>}
       {isMine ? (
         <LinearGradient
-          colors={resolvedMode === 'dark' ? ['#ec4899', '#8b5cf6'] : ['#ff758c', '#ff7eb3']}
+          colors={[colors.accentEnd, colors.accentStart]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[styles.bubble, styles.bubbleMine]}
         >
-          <Text style={{ color: '#ffffff', fontSize: 16, lineHeight: 22 }}>{item.text}</Text>
+          <Text style={{ color: colors.textPrimary, fontSize: 16, lineHeight: 22 }}>{item.text}</Text>
           {!!item.reaction && <Text style={styles.reaction}>{item.reaction}</Text>}
         </LinearGradient>
       ) : (
-        <View style={[styles.bubble, styles.bubbleOther, { backgroundColor: resolvedMode === 'dark' ? '#2A2A2A' : '#F0F0F0' }]}>
-          <Text style={{ color: resolvedMode === 'dark' ? '#ffffff' : '#111827', fontSize: 16, lineHeight: 22 }}>{item.text}</Text>
+        <View style={[styles.bubble, styles.bubbleOther, { backgroundColor: colors.bubbleOtherBg }]}>
+          <Text style={{ color: colors.bubbleOtherText, fontSize: 16, lineHeight: 22 }}>{item.text}</Text>
           {!!item.reaction && <Text style={styles.reaction}>{item.reaction}</Text>}
         </View>
       )}
@@ -65,7 +63,7 @@ const AnimatedMessageItem = ({ item, partner, colors, resolvedMode }: MsgProps) 
 }
 
 const TypingDots = () => {
-  const { colors, resolvedMode } = useTheme()
+  const { colors } = useTheme()
   const opacity = useSharedValue(0)
   const translateY = useSharedValue(20)
 
@@ -74,7 +72,6 @@ const TypingDots = () => {
   const d3 = useSharedValue(0)
 
   useEffect(() => {
-    // Initial entrance for typing bubble
     opacity.value = withTiming(1, { duration: 300 })
     translateY.value = withSpring(0, { damping: 15, stiffness: 200 })
 
@@ -108,11 +105,18 @@ const TypingDots = () => {
 
   return (
     <Animated.View style={[styles.row, styles.rowOther, containerStyle]}>
-      {/* For spacing consistency we could render avatar if needed, left blank for anonymous vibe if no partner */}
-      <View style={[styles.bubble, styles.bubbleOther, { backgroundColor: resolvedMode === 'dark' ? '#2A2A2A' : '#F0F0F0', flexDirection: 'row', gap: 4, height: 42, alignItems: 'center', paddingHorizontal: 16, paddingVertical: 0 }]}>
-        <Animated.View style={[s1, { width: 6, height: 6, borderRadius: 3, backgroundColor: resolvedMode === 'dark' ? '#ffffff' : colors.muted }]} />
-        <Animated.View style={[s2, { width: 6, height: 6, borderRadius: 3, backgroundColor: resolvedMode === 'dark' ? '#ffffff' : colors.muted }]} />
-        <Animated.View style={[s3, { width: 6, height: 6, borderRadius: 3, backgroundColor: resolvedMode === 'dark' ? '#ffffff' : colors.muted }]} />
+      <View style={[styles.bubble, styles.bubbleOther, {
+        backgroundColor: colors.bubbleOtherBg,
+        flexDirection: 'row',
+        gap: 4,
+        height: 42,
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingVertical: 0
+      }]}>
+        <Animated.View style={[s1, { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.bubbleOtherText }]} />
+        <Animated.View style={[s2, { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.bubbleOtherText }]} />
+        <Animated.View style={[s3, { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.bubbleOtherText }]} />
       </View>
     </Animated.View>
   )
@@ -123,11 +127,9 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
 const AnimatedIcebreaker = ({
   text,
   onPress,
-  resolvedMode
 }: {
   text: string;
   onPress: () => void;
-  resolvedMode: 'light' | 'dark'
 }) => {
   const { colors } = useTheme()
   const scale = useSharedValue(1)
@@ -143,22 +145,11 @@ const AnimatedIcebreaker = ({
     scale.value = withSpring(1, { damping: 12, stiffness: 250 })
   }
 
-  const animatedStyle = useAnimatedStyle(() => {
-    // Glassmorphism dynamic border
-    const borderColor = resolvedMode === 'dark'
-      ? `rgba(255, 255, 255, 0.1)`
-      : `rgba(0, 0, 0, 0.1)`
-
-    // Slight background shift on press
-    const baseBgMatch = resolvedMode === 'dark' ? '#1f2937' : '#ffffff'
-    const pressedBgMatch = resolvedMode === 'dark' ? '#374151' : '#f3f4f6'
-
-    return {
-      transform: [{ scale: scale.value }],
-      borderColor,
-      backgroundColor: isPressed.value ? pressedBgMatch : baseBgMatch,
-    }
-  })
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    borderColor: colors.border,
+    backgroundColor: isPressed.value ? colors.icebreakerBgPressed : colors.icebreakerBg,
+  }))
 
   return (
     <AnimatedPressable
@@ -167,26 +158,24 @@ const AnimatedIcebreaker = ({
       onPress={onPress}
       style={[styles.chip, animatedStyle]}
     >
-      <Text style={[styles.chipText, { color: colors.text }]}>{text}</Text>
+      <Text style={[styles.chipText, { color: colors.textPrimary }]}>{text}</Text>
     </AnimatedPressable>
   )
 }
 
 export default function MessageList() {
   const { messages, typing, partner, sendMessage } = useChat()
-  const { colors, resolvedMode } = useTheme()
+  const { colors } = useTheme()
   const insets = useSafeAreaInsets()
 
-  // Reverse messages for inverted list (Index 0 = Newest = Bottom)
   const reversedMessages = useMemo(() => [...messages].reverse(), [messages])
 
-  const renderItem: ListRenderItem<Msg> = ({ item, index }) => {
+  const renderItem: ListRenderItem<Msg> = ({ item }) => {
     return (
       <AnimatedMessageItem
         item={item}
         partner={partner}
         colors={colors}
-        resolvedMode={resolvedMode!}
       />
     )
   }
@@ -200,19 +189,20 @@ export default function MessageList() {
         renderItem={renderItem}
         contentContainerStyle={[
           styles.content,
-          { paddingTop: 80, paddingBottom: insets.top + 60 }, // Spacer for the absolute positioned MessageInput
+          { paddingTop: insets.bottom + 80 },
           reversedMessages.length === 0 && styles.emptyContent
         ]}
+        ListFooterComponent={<View style={{ height: insets.top + 70 }} />}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={[styles.emptyTitle, { color: colors.muted }]}>Break the ice 🧊</Text>
+            <Text style={[styles.emptyTitle, { color: colors.textSecondary }]}>Break the ice 🧊</Text>
             <View style={styles.chipContainer}>
               {[
-                'What’s your most embarrassing moment? 😳',
+                "What's your most embarrassing moment? 😳",
                 'Truth or Dare? 🎲',
                 'Rate your day 1–10 📉',
               ].map((text) => (
-                <AnimatedIcebreaker key={text} text={text} resolvedMode={resolvedMode} onPress={() => sendMessage(text)} />
+                <AnimatedIcebreaker key={text} text={text} onPress={() => sendMessage(text)} />
               ))}
             </View>
           </View>
@@ -235,17 +225,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
-  // High border radius, asymmetrical
   bubbleMine: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 4, // Sharp corner
+    borderBottomRightRadius: 4,
   },
   bubbleOther: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    borderBottomLeftRadius: 4, // Sharp corner
+    borderBottomLeftRadius: 4,
     borderBottomRightRadius: 20,
   },
   reaction: { marginTop: 4 },
@@ -256,7 +245,7 @@ const styles = StyleSheet.create({
   chip: {
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 24, // Pill shape
+    borderRadius: 24,
     borderWidth: 1,
     alignSelf: 'center',
     width: '100%',

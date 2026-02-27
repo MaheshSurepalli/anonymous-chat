@@ -1,9 +1,20 @@
 import React, { useMemo, useState, useRef, useEffect } from 'react'
-import { Platform, Pressable, StyleSheet, Text, TextInput, View, AppState } from 'react-native'
+import { Platform, Pressable, StyleSheet, TextInput, View, AppState } from 'react-native'
 import { BlurView } from 'expo-blur'
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  withTiming,
+  interpolateColor,
+} from 'react-native-reanimated'
+import { Ionicons } from '@expo/vector-icons'
 import { useChat } from '../state/ChatContext'
 import { debounce } from '../utils/debounce'
 import { useTheme } from '../state/ThemeContext'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
 
 export default function MessageInput() {
   const { sendMessage, sendTyping } = useChat()
@@ -11,12 +22,29 @@ export default function MessageInput() {
   const { colors, resolvedMode } = useTheme()
   const inputRef = useRef<TextInput>(null)
   const appState = useRef(AppState.currentState)
+  const insets = useSafeAreaInsets()
 
-  const debouncedTyping = useMemo(() => debounce((isTyping: boolean) => sendTyping(isTyping), 180), [sendTyping])
+  // 0 = empty/disabled  →  1 = has text/active
+  const progress = useSharedValue(0)
+
+  const debouncedTyping = useMemo(
+    () => debounce((isTyping: boolean) => sendTyping(isTyping), 180),
+    [sendTyping]
+  )
 
   const isSendDisabled = text.trim().length === 0
 
-  // Fix for Android Keyboard state losing sync on app resume
+  // Drive the animation whenever text changes
+  useEffect(() => {
+    const hasText = text.trim().length > 0
+    if (hasText) {
+      progress.value = withSpring(1, { damping: 12, stiffness: 200, mass: 0.7 })
+    } else {
+      progress.value = withTiming(0, { duration: 180 })
+    }
+  }, [text, progress])
+
+  // Fix for Android keyboard state losing sync on app resume
   useEffect(() => {
     if (Platform.OS !== 'android') return
 
@@ -32,13 +60,10 @@ export default function MessageInput() {
           }, 100)
         }
       }
-
       appState.current = nextAppState
     })
 
-    return () => {
-      subscription.remove()
-    }
+    return () => subscription.remove()
   }, [])
 
   const submit = () => {
@@ -49,13 +74,32 @@ export default function MessageInput() {
     sendTyping(false)
   }
 
+  // Colour stops for interpolation
+  const disabledBg = resolvedMode === 'dark' ? '#2d2d2d' : '#e5e7eb'
+  const activeBg = colors.primaryBg
+
+  const animatedBtnStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + progress.value * 0.15 }],
+    backgroundColor: interpolateColor(progress.value, [0, 1], [disabledBg, activeBg]),
+  }))
+
+  const animatedIconStyle = useAnimatedStyle(() => ({
+    opacity: 0.4 + progress.value * 0.6,
+  }))
+
+  // Icon colour resolves from the theme so it always contrasts
+  const iconColor = isSendDisabled
+    ? (resolvedMode === 'dark' ? '#6b7280' : '#9ca3af')
+    : colors.primaryText
+
   return (
     <BlurView
       intensity={80}
       tint={resolvedMode === 'dark' ? 'dark' : 'light'}
       style={[
         styles.wrapper,
-        { borderTopColor: resolvedMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' }
+        { paddingBottom: insets.bottom + 12 },
+        { borderTopColor: resolvedMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' },
       ]}
     >
       <View style={styles.row}>
@@ -68,37 +112,28 @@ export default function MessageInput() {
           numberOfLines={3}
           textAlignVertical="top"
           onSubmitEditing={Platform.OS === 'ios' ? submit : undefined}
-          placeholderTextColor={resolvedMode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)'}
+          placeholderTextColor={
+            resolvedMode === 'dark' ? 'rgba(255,255,255,0.5)' : 'rgba(0,0,0,0.4)'
+          }
           style={[
             styles.input,
             {
               borderColor: resolvedMode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
               backgroundColor: resolvedMode === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.3)',
-              color: colors.text
-            }
+              color: colors.text,
+            },
           ]}
         />
-        <Pressable
+
+        <AnimatedPressable
           onPress={submit}
           disabled={isSendDisabled}
-          style={({ pressed }) => [
-            styles.sendBtn,
-            isSendDisabled
-              ? { backgroundColor: resolvedMode === 'dark' ? '#374151' : '#e5e7eb' }
-              : { backgroundColor: colors.primaryBg },
-            pressed && !isSendDisabled && { opacity: 0.8 },
-            !isSendDisabled && styles.sendBtnActive
-          ]}
+          style={[styles.sendBtn, animatedBtnStyle]}
         >
-          <Text style={[
-            styles.sendText,
-            isSendDisabled
-              ? { color: resolvedMode === 'dark' ? '#9ca3af' : '#6b7280' }
-              : { color: colors.primaryText } // this resolves dynamically to contrast
-          ]}>
-            Send
-          </Text>
-        </Pressable>
+          <Animated.View style={animatedIconStyle}>
+            <Ionicons name="arrow-up" size={22} color={iconColor} />
+          </Animated.View>
+        </AnimatedPressable>
       </View>
     </BlurView>
   )
@@ -106,13 +141,14 @@ export default function MessageInput() {
 
 const styles = StyleSheet.create({
   wrapper: {
-    padding: 12,
-    borderTopWidth: StyleSheet.hairlineWidth
+    paddingTop: 12,
+    paddingHorizontal: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: 12
+    gap: 12,
   },
   input: {
     flex: 1,
@@ -123,25 +159,14 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     borderWidth: 1,
     fontSize: 16,
-    lineHeight: 20
+    lineHeight: 20,
   },
   sendBtn: {
-    borderRadius: 22,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 2 // Slightly offset to align dynamically with single-line input
+    marginBottom: 2,
   },
-  sendBtnActive: {
-    shadowColor: '#ec4899',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4
-  },
-  sendText: {
-    fontWeight: '700',
-    fontSize: 16
-  }
 })
