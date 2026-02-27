@@ -1,16 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { View, Text, Pressable, StyleSheet } from 'react-native'
-import ConfirmDialog from './ConfirmDialog'
+import AppBottomSheet, { SheetType } from './AppBottomSheet'
 import SettingsDialog from './SettingsDialog'
 import { useChat } from '../state/ChatContext'
-import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTheme } from '../state/ThemeContext'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export default function HeaderBar() {
-  const { status, partner, startedAt, next, leave } = useChat()
-  const [active, setActive] = useState<null | 'next' | 'end' | 'report' | 'settings'>(null)
+  const { status, partner, startedAt, next, leave, typing } = useChat()
+  const [active, setActive] = useState<null | 'next' | 'end' | 'cancelSearch' | 'settings'>(null)
   const [now, setNow] = useState(() => Date.now())
-  const { mode, colors } = useTheme()
+  const { mode, colors, resolvedMode } = useTheme()
+  const insets = useSafeAreaInsets()
 
   useEffect(() => {
     if (status !== 'matched' || !startedAt) {
@@ -29,103 +30,140 @@ export default function HeaderBar() {
     return `${mm}:${ss}`
   }, [startedAt, now])
 
+  let statusText = 'Anonymous Chat'
+  if (status === 'searching') statusText = 'Looking for someone...'
+  else if (status === 'matched') {
+    if (typing) statusText = 'Stranger is typing...'
+    else statusText = 'Chatting with Stranger'
+  }
+
+  // Resolve which sheet type to show based on the active dialog
+  const sheetType: SheetType | null =
+    active === 'cancelSearch' ? 'CANCEL_SEARCH'
+      : active === 'end' ? 'END_CHAT'
+        : active === 'next' ? 'SKIP'
+          : null
+
   return (
     <>
-      <SafeAreaView edges={['top']} style={{ backgroundColor: colors.card }}>
-        <View style={[styles.header, { borderBottomColor: colors.border, backgroundColor: colors.card }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            {status === 'matched' && partner && (
-              <Text style={[styles.sub, { color: colors.muted }]}>{partner.avatar} {timer ?? '--:--'}</Text>
-            )}
-          </View>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Pressable onPress={() => setActive('settings')} style={[styles.iconBtn, { borderColor: colors.border }]}>
-              <Text style={[styles.iconBtnText, { color: colors.text }]}>Settings</Text>
-            </Pressable>
-            {status === 'matched' && (
-              <>
-                <Pressable
-                  onPress={() => setActive('next')}
-                  style={[styles.iconBtn, { borderColor: colors.border }]}
-                >
-                  <Text style={[styles.iconBtnText, { color: colors.text }]}>Next</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setActive('report')}
-                  style={[styles.iconBtn, { borderColor: colors.dangerBg }]}
-                >
-                  <Text style={[styles.iconBtnText, { color: colors.dangerBg }]}>Report</Text>
-                </Pressable>
-              </>
-            )}
+      <View
+        style={[
+          styles.glassHeader,
+          {
+            paddingTop: insets.top,
+            height: insets.top + 60,
+            backgroundColor: resolvedMode === 'dark'
+              ? 'rgba(10,10,14,0.92)'   // deep space black, nearly opaque
+              : 'rgba(248,250,252,0.90)', // off-white
+            borderBottomColor: resolvedMode === 'dark'
+              ? 'rgba(255,255,255,0.07)'
+              : 'rgba(0,0,0,0.06)',
+            borderBottomWidth: 1,
+          },
+        ]}
+      >
+        <View style={styles.header}>
+          <View style={styles.leftCol}>
             {status !== 'idle' && (
               <Pressable
-                onPress={() => setActive('end')}
-                style={[styles.iconBtn, { backgroundColor: colors.dangerBg, borderColor: colors.dangerBg }]}
+                onPress={() =>
+                  setActive(status === 'searching' ? 'cancelSearch' : 'end')
+                }
+                style={[styles.leaveBtn, { backgroundColor: colors.dangerBg, borderColor: colors.dangerBg }]}
               >
-                <Text style={[styles.iconBtnText, { color: 'white' }]}>End</Text>
+                <Text style={styles.leaveBtnText}>Leave</Text>
+              </Pressable>
+            )}
+          </View>
+
+          <View style={styles.centerCol}>
+            <Text style={[styles.title, { color: colors.text }]}>{statusText}</Text>
+          </View>
+
+          <View style={styles.rightCol}>
+            {status === 'matched' && (
+              <Pressable
+                onPress={() => setActive('next')}
+                style={[styles.nextBtn, { borderColor: colors.border }]}
+              >
+                <Text style={[styles.nextBtnText, { color: colors.text }]}>Next</Text>
               </Pressable>
             )}
           </View>
         </View>
-      </SafeAreaView>
+      </View>
 
       <SettingsDialog
         open={active === 'settings'}
         onClose={() => setActive(null)}
       />
 
-      <ConfirmDialog
-        open={active === 'next'}
-        title="Skip to next?"
-        description="You'll leave the current chat and find a new match."
-        confirmLabel="Next"
-        onConfirm={() => {
-          setActive(null)
-          next()
-        }}
-        onCancel={() => setActive(null)}
-      />
-      <ConfirmDialog
-        open={active === 'report'}
-        title="Report this chat?"
-        description="This will end the current chat and remove you from the room."
-        confirmLabel="Report"
-        tone="danger"
-        onConfirm={() => {
-          setActive(null)
-          leave()
-        }}
-        onCancel={() => setActive(null)}
-      />
-      <ConfirmDialog
-        open={active === 'end'}
-        title="End chat?"
-        description="This will end the current chat."
-        confirmLabel="End"
-        tone="danger"
-        onConfirm={() => {
-          setActive(null)
-          leave()
-        }}
-        onCancel={() => setActive(null)}
-      />
+      {sheetType !== null && (
+        <AppBottomSheet
+          type={sheetType}
+          open={sheetType !== null}
+          onCancel={() => setActive(null)}
+          onConfirm={() => {
+            setActive(null)
+            if (active === 'next') next()
+            else leave()
+          }}
+        />
+      )}
     </>
   )
 }
 
 const styles = StyleSheet.create({
+  glassHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+  },
   header: {
-    height: 56,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    flex: 1,
     paddingHorizontal: 16,
-    alignItems: 'center',
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
   },
-  title: { fontWeight: '600' },
-  sub: {},
-  iconBtn: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 },
-  iconBtnText: { fontWeight: '600' },
+  leftCol: {
+    flex: 1,
+    alignItems: 'flex-start',
+  },
+  centerCol: {
+    flex: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rightCol: {
+    flex: 1,
+    alignItems: 'flex-end',
+  },
+  title: {
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  leaveBtn: {
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  leaveBtnText: {
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  nextBtn: {
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  nextBtnText: {
+    fontWeight: '600',
+    fontSize: 14,
+  },
 })
-

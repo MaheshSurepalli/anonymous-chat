@@ -3,18 +3,19 @@ export type ClientToServer =
   | { type: 'message'; room: string; text: string; sentAt: number }
   | { type: 'typing'; room: string; isTyping: boolean }
   | { type: 'next' }
-  | { type: 'leave' };
+  | { type: 'leave' }
+  | { type: 'reconnect'; userId: string };
 
 export type ServerToClient =
   | {
-      type: 'paired'
-      room: string
-      partner: { id: string; avatar: string }
-      startedAt: number
-    }
+    type: 'paired'
+    room: string
+    partner: { id: string; avatar: string }
+    startedAt: number
+  }
   | { type: 'message'; room: string; text: string; sentAt: number }
   | { type: 'typing'; room: string; isTyping: boolean }
-  | { type: 'system'; code: 'idle' | 'searching'; message: string }
+  | { type: 'system'; code: 'idle' | 'searching' | 'reconnected'; message: string }
   | { type: 'queue_size'; count: number }
   | { type: 'error'; message: string };
 

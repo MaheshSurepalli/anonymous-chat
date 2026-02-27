@@ -4,12 +4,13 @@ import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { ThemeProvider, useTheme } from '../src/state/ThemeContext'
 import { OnboardingProvider } from '../src/state/OnboardingContext'
+import { KeyboardProvider } from 'react-native-keyboard-controller'
 
 function RootInner() {
   const { resolvedMode } = useTheme()
   return (
     <>
-      <StatusBar style={resolvedMode === 'dark' ? 'light' : 'dark'} />
+      <StatusBar style={resolvedMode === 'dark' ? 'light' : 'dark'} translucent={true} backgroundColor="transparent" />
       <Stack screenOptions={{ headerShown: false }} />
     </>
   )
@@ -21,7 +22,9 @@ export default function RootLayout() {
       <ThemeProvider>
         <OnboardingProvider>
           <ChatProvider>
-            <RootInner />
+            <KeyboardProvider>
+              <RootInner />
+            </KeyboardProvider>
           </ChatProvider>
         </OnboardingProvider>
       </ThemeProvider>

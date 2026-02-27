@@ -1,0 +1,60 @@
+from datetime import datetime
+from fastapi import APIRouter
+from sqlalchemy import select, delete
+
+from app.db import database
+from app.db.database import engine, push_tokens
+
+router = APIRouter(tags=["admin"])
+
+
+@router.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
+@router.get("/admin/tokens")
+async def list_tokens():
+    """List all registered push tokens in IST."""
+    with engine.connect() as conn:
+        rows = conn.execute(select(push_tokens)).fetchall()
+        
+    result = []
+    for r in rows:
+        d = dict(r._mapping)
+        for key, value in d.items():
+            if isinstance(value, datetime):
+                # Convert backend UTC straight into IST for the API consumer
+                d[key] = value.astimezone(database.IST)
+        result.append(d)
+        
+    return result
+
+
+@router.get("/admin/tokens/stats")
+async def token_stats():
+    """
+    Return the count of registered push notification devices and daily app engagement metrics.
+
+    - **users_total**: all-time registered token count
+    - **new_users_today**: tokens registered today (IST)
+    - **active_users_today**: total unique devices that opened the app today
+    - **app_opens_today**: total number of times the app was opened today
+    - **app_opens_all_time**: total number of times the app was opened across all users
+    """
+    return database.get_token_stats()
+
+
+@router.delete("/admin/tokens/{token}")
+async def delete_single_token(token: str):
+    """Delete a specific push token."""
+    database.delete_token(token)
+    return {"status": "deleted", "token": token}
+
+
+@router.delete("/admin/tokens")
+async def delete_all_tokens():
+    """Delete all push tokens."""
+    with engine.begin() as conn:
+        result = conn.execute(delete(push_tokens))
+    return {"status": "deleted", "count": result.rowcount}
